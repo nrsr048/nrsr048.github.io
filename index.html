@@ -3460,4 +3460,82 @@ const A9=applyAll;applyAll=function(){A9();relang()};
 window.relangUI=relang;relang();
 })();
 </script>
+ <style>
+#au{position:fixed;inset:0;z-index:42;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;padding:1rem;background:radial-gradient(90% 60% at 50% 40%,var(--bg2),var(--bg));transition:opacity .45s,transform .45s}
+#au.go{opacity:0;transform:scale(1.06);pointer-events:none}
+#au.shake{animation:shk .35s}
+#au h2{margin:0;font-size:1.2rem;font-weight:800}
+#au form{width:100%;max-width:20rem;display:grid;gap:.6rem}
+#au .er{min-height:1.2rem;margin:0;text-align:center;font-size:.9rem;color:#ff6b7a}
+#au .btn{width:100%;padding:.85rem}
+</style>
+<script>
+(function(){
+const K='sr_auth',enc=new TextEncoder();
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const LOCK=['home','view'];                       // kirishgacha bloklanadigan bo'limlar
+let A=null;try{A=JSON.parse(localStorage.getItem(K)||'null')}catch(e){}
+
+async function hash(pw,salt){
+  try{
+    const km=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveBits']);
+    return b64(await crypto.subtle.deriveBits(
+      {name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},km,256));
+  }catch(e){                                      // crypto.subtle bo'lmasa (zaxira)
+    let h=5381;for(const c of 'sr:'+pw+b64(salt))h=(h*33^c.charCodeAt(0))>>>0;
+    return 'x'+h;
+  }
+}
+const setInert=v=>LOCK.forEach(id=>{const e=document.getElementById(id);if(e)e.inert=v});
+
+function show(){
+  const first=!A;
+  const o=document.createElement('div');o.id='au';
+  o.innerHTML=
+   '<div class="sr" style="font-size:3.6rem;animation:sweep 5s linear infinite">SR</div>'+
+   '<h2>'+(first?'Ro‘yxatdan o‘tish':'Kirish')+'</h2>'+
+   '<form autocomplete="on">'+
+     '<input id="au1" name="username" autocomplete="username" placeholder="Login">'+
+     '<div class="pw"><input id="au2" name="password" type="password" '+
+       'autocomplete="'+(first?'new-password':'current-password')+'" placeholder="Parol">'+
+       '<button type="button" class="eye" aria-label="Parolni ko‘rsatish">👁</button></div>'+
+     (first?'<input id="au3" type="password" autocomplete="new-password" placeholder="Parolni takrorlang">':'')+
+     '<p class="er" id="aue"></p>'+
+     '<button class="btn pri" type="submit">'+(first?'Yaratish':'Kirish')+'</button>'+
+   '</form>';
+  document.body.appendChild(o);
+  setInert(true);
+
+  const $=s=>o.querySelector(s),u1=$('#au1'),u2=$('#au2'),u3=$('#au3'),er=$('#aue');
+  const err=m=>{er.textContent=m;o.classList.add('shake');setTimeout(()=>o.classList.remove('shake'),400)};
+  const ok=()=>{setInert(false);o.classList.add('go');setTimeout(()=>o.remove(),500)};
+  $('.eye').onclick=()=>{u2.type=u2.type=='password'?'text':'password'};
+
+  let fails=0,until=0;
+  $('form').onsubmit=async e=>{
+    e.preventDefault();
+    const u=u1.value.trim().toLowerCase(),p=u2.value;
+    if(Date.now()<until)return err('Biroz kuting…');
+    if(first){
+      if(u.length<3)return err('Login kamida 3 ta belgi bo‘lsin');
+      if(p.length<4)return err('Parol kamida 4 ta belgi bo‘lsin');
+      if(p!==u3.value)return err('Parollar mos kelmadi');
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      A={u,s:b64(salt),h:await hash(p,salt)};
+      localStorage.setItem(K,JSON.stringify(A));
+      ok();
+    }else{
+      const h=await hash(p,ub(A.s));
+      if(u===A.u&&h===A.h)return ok();
+      fails++;
+      if(fails>=3)until=Date.now()+Math.min(30,Math.pow(2,fails-2))*1000;  // kutish vaqti oshib boradi
+      err('Login yoki parol noto‘g‘ri');u2.value='';
+    }
+  };
+  setTimeout(()=>u1.focus(),2000);                // splash tugagach fokus
+}
+show();
+})();
+</script>
 </body></html>
