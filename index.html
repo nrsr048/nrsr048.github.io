@@ -3725,4 +3725,92 @@ const A9=applyAll;applyAll=function(){A9();relang()};
 window.trU=x=>tr(x,li());window.relangUI=relang;relang();
 })();
 </script>
+ <style>
+#au{position:fixed;inset:0;z-index:42;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;padding:1rem;background:radial-gradient(90% 60% at 50% 40%,var(--bg2),var(--bg));transition:opacity .45s,transform .45s}
+#au.go{opacity:0;transform:scale(1.06);pointer-events:none}
+#au.shake{animation:shk .35s}
+#au h2{margin:0;font-size:1.2rem;font-weight:800}
+#au form{width:100%;max-width:20rem;display:grid;gap:.6rem}
+#au .er{min-height:1.2rem;margin:0;text-align:center;font-size:.9rem;color:#ff6b7a}
+#au .btn{width:100%;padding:.85rem}
+</style>
+<script>
+(function(){
+// Faqat shu emaillar kira oladi (kichik harfda)
+const ALLOWED=['nrsr048@gmail.com'];
+
+const U='https://olqnhjokpufudfqyenwx.supabase.co',
+      KEY='sb_publishable_QeOKzQgDKSV9nNoQj99M7w_tdcWHUs_',
+      SK='sr_sb';
+const LOCK=['home','view'];
+const setInert=v=>LOCK.forEach(id=>{const e=document.getElementById(id);if(e)e.inert=v});
+
+async function check(email,pw){
+  let r,j;
+  try{
+    r=await fetch(U+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{apikey:KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,password:pw})
+    });
+    j=await r.json();
+  }catch(e){throw new Error('Internet yo‘q yoki ulanib bo‘lmadi')}
+  if(!r.ok||!j.access_token){
+    const m=String((j&&(j.error_description||j.msg||j.message))||'').toLowerCase();
+    if(m.includes('not confirmed'))throw new Error('Email tasdiqlanmagan');
+    if(m.includes('rate limit')||m.includes('too many'))throw new Error('Juda ko‘p urinish, 1 daqiqa kuting');
+    throw new Error('Email yoki parol noto‘g‘ri');
+  }
+  const em=((j.user&&j.user.email)||'').toLowerCase();
+  if(!ALLOWED.includes(em))throw new Error('Sizga ruxsat berilmagan');
+  // Bulut sinxronlashi uchun sessiyani dastur formatida saqlaymiz
+  try{
+    localStorage.setItem(SK,JSON.stringify({
+      at:j.access_token,rt:j.refresh_token,
+      id:j.user&&j.user.id,em:em,
+      exp:Date.now()+(j.expires_in||3600)*1000-60000
+    }));
+  }catch(e){}
+}
+
+function show(){
+  const o=document.createElement('div');o.id='au';
+  o.innerHTML=
+   '<div class="sr" style="font-size:3.6rem;animation:sweep 5s linear infinite">SR</div>'+
+   '<h2>Kirish</h2>'+
+   '<form autocomplete="on">'+
+     '<input id="au1" type="email" name="username" autocomplete="username" placeholder="Email">'+
+     '<div class="pw"><input id="au2" name="password" type="password" autocomplete="current-password" placeholder="Parol">'+
+       '<button type="button" class="eye" aria-label="Parolni ko‘rsatish">👁</button></div>'+
+     '<p class="er" id="aue"></p>'+
+     '<button class="btn pri" type="submit">Kirish</button>'+
+   '</form>';
+  document.body.appendChild(o);
+  setInert(true);
+
+  const $=s=>o.querySelector(s),u1=$('#au1'),u2=$('#au2'),er=$('#aue'),btn=$('.btn');
+  const err=m=>{er.textContent=m;o.classList.add('shake');setTimeout(()=>o.classList.remove('shake'),400)};
+  $('.eye').onclick=()=>{u2.type=u2.type=='password'?'text':'password'};
+
+  let fails=0,until=0;
+  $('form').onsubmit=async e=>{
+    e.preventDefault();
+    if(Date.now()<until)return err('Biroz kuting…');
+    const em=u1.value.trim().toLowerCase(),pw=u2.value;
+    if(!em||!pw)return err('Email va parolni kiriting');
+    btn.disabled=true;er.textContent='⏳';
+    try{
+      await check(em,pw);
+      setInert(false);o.classList.add('go');setTimeout(()=>o.remove(),500);
+    }catch(x){
+      fails++;if(fails>=3)until=Date.now()+Math.min(30,Math.pow(2,fails-2))*1000;
+      err(x.message);u2.value='';
+    }
+    btn.disabled=false;
+  };
+  setTimeout(()=>u1.focus(),2000);
+}
+show();
+})();
+ </script>
 </body></html>
